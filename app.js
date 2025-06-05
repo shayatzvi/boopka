@@ -52,6 +52,10 @@ const adminUserList = document.getElementById('admin-user-list');
 const adminTransactionList = document.getElementById('admin-transaction-list');
 const adminNoTransactionsMsg = document.getElementById('admin-no-transactions');
 
+// Admin Statement DOM Elements
+const statementStartDateInput = document.getElementById('statement-start-date');
+const statementEndDateInput = document.getElementById('statement-end-date');
+
 const DEFAULT_CREDITS = 100; // Credits for new users
 let unsubscribeUserCreditsListener = null;
 let unsubscribeCardsListener = null;
@@ -62,6 +66,11 @@ document.addEventListener('DOMContentLoaded', function() {
     M.AutoInit();
     var elems = document.querySelectorAll('select'); // Re-initialize selects if dynamically added or for admin area
     M.FormSelect.init(elems);
+
+    // Initialize Datepickers
+    var datepickerElems = document.querySelectorAll('.datepicker');
+    M.Datepicker.init(datepickerElems, { format: 'yyyy-mm-dd' });
+    // M.FormSelect.init(elems); // Duplicate, already called above
 });
 // --- User Account Initialization and Real-time Updates ---
 async function initializeUserAccount(userId, userEmail) {
@@ -352,7 +361,7 @@ async function displayUserCards(userId) {
             const li = document.createElement('li');
             li.classList.add('collection-item');
             // Display masked number and type (if available)
-            li.innerHTML = `Loyalty Card: <strong>${cardData.maskedNumber || 'N/A'}</strong> (Ends: ${cardData.last4 || 'N/A'})`;
+            li.innerHTML = `<div>Loyalty Card: <strong>${cardData.maskedNumber || 'N/A'}</strong> (Ends: ${cardData.last4 || 'N/A'})<a href="#!" class="secondary-content delete-card-btn" data-card-id="${doc.id}"><i class="material-icons red-text notranslate">delete</i></a></div>`;
             cardList.appendChild(li);
         });
     }, error => {
@@ -362,6 +371,31 @@ async function displayUserCards(userId) {
     });
 }
 
+// --- Delete Card Logic ---
+cardList.addEventListener('click', async (event) => {
+    if (event.target.classList.contains('material-icons') && event.target.parentElement.classList.contains('delete-card-btn')) {
+        const deleteButton = event.target.parentElement;
+        const cardId = deleteButton.dataset.cardId;
+        const currentUser = auth.currentUser;
+
+        if (!currentUser) {
+            cardStatus.textContent = "You must be logged in to delete cards.";
+            cardStatus.style.color = 'red';
+            return;
+        }
+
+        try {
+            await db.collection('users').doc(currentUser.uid).collection('cards').doc(cardId).delete();
+            cardStatus.textContent = "Card deleted successfully.";
+            cardStatus.style.color = 'green';
+        } catch (error) {
+            console.error("Error deleting card:", error);
+            cardStatus.textContent = "Failed to delete card: " + error.message;
+            cardStatus.style.color = 'red';
+        }
+    }
+});
+
 addCardBtn.addEventListener('click', async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) {
@@ -370,21 +404,27 @@ addCardBtn.addEventListener('click', async () => {
         return;
     }
 
-    const cardNumber = cardNumberInput.value.trim();
+    // const cardNumber = cardNumberInput.value.trim(); // No longer taking user input for card number
     cardStatus.textContent = '';
 
-    if (!cardNumber || cardNumber.length < 1) { // Simple check for non-empty
-        cardStatus.textContent = "Please enter a loyalty card number.";
-        cardStatus.style.color = 'red';
-        return;
-    }
+    // if (!cardNumber || cardNumber.length < 1) { // Simple check for non-empty
+    //     cardStatus.textContent = "Please enter a loyalty card number.";
+    //     cardStatus.style.color = 'red';
+    //     return;
+    // }
 
     try {
-        // Store the input string and the last 4 digits (if applicable)
+        // Auto-generate a card number
+        // Generate a 7-digit number (between 1000000 and 9999999)
+        const generated7DigitNumber = Math.floor(1000000 + Math.random() * 9000000).toString();
+
+        // Display the generated number in the input field
+        cardNumberInput.value = generated7DigitNumber;
+
         await db.collection('users').doc(currentUser.uid).collection('cards').add({
-            maskedNumber: cardNumber,
-            last4: cardNumber.slice(-4), // Extract last 4 digits
-            type: 'Loyalty', // Card type detection is more complex, leaving as unknown
+            maskedNumber: generated7DigitNumber,
+            last4: generated7DigitNumber.slice(-4), // Extract last 4 digits
+            type: 'Loyalty',
             addedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
         cardStatus.textContent = "Loyalty card added successfully.";
@@ -418,7 +458,7 @@ async function loadAllUsersForAdmin() {
             const userData = doc.data();
             const li = document.createElement('li');
             li.classList.add('collection-item'); 
-            li.innerHTML = `<div>Email: ${userData.email} <span class="secondary-content">Balance: <strong>${userData.credits}</strong> BUP</span></div><small class="grey-text">UID: ${doc.id}</small>`;
+            li.innerHTML = `<div>Email: ${userData.email} <span class="secondary-content">Balance: <strong>${userData.credits}</strong> BUP <a href="#!" class="statement-btn" data-user-id="${doc.id}"><i class="material-icons tiny blue-text notranslate">description</i></a></span></div><small class="grey-text">UID: ${doc.id}</small>`;
             adminUserList.appendChild(li);
         });
     } catch (error) {
@@ -426,6 +466,39 @@ async function loadAllUsersForAdmin() {
         adminUserList.innerHTML = '<li><span style="color:red;">Error loading users.</span></li>';
     }
 }
+
+// --- Admin Statement Logic ---
+adminUserList.addEventListener('click', (event) => {
+    console.log("Admin user list clicked. Target:", event.target); // DEBUG
+    // Check if the clicked element or its parent is the statement button
+    const statementButton = event.target.closest('.statement-btn');
+    console.log("Statement button found by .closest():", statementButton); // DEBUG
+
+    if (statementButton) {
+        console.log("Statement button is valid, proceeding."); // DEBUG
+        const userId = statementButton.dataset.userId;
+        const startDate = statementStartDateInput.value;
+        const endDate = statementEndDateInput.value;
+        console.log("User ID:", userId, "Start Date:", startDate, "End Date:", endDate); // DEBUG
+
+        let url = `statement.html?userId=${userId}`;
+        if (startDate) {
+            url += `&startDate=${startDate}`;
+        }
+        if (endDate) {
+            url += `&endDate=${endDate}`;
+        }
+        console.log("Generated URL:", url); // DEBUG
+
+        // Open the statement page in a new tab
+        window.open(url, '_blank');
+        console.log("window.open called for statement."); // DEBUG
+    } else {
+        console.log("Clicked target was not a statement button or its child."); // DEBUG
+    }
+});
+
+
 
 async function loadAllTransactionsForAdmin() {
     adminTransactionList.innerHTML = '<li>Loading transactions...</li>';
