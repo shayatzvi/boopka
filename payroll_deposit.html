@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Payroll Deposits - BOOPKA</title>
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .payment-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .payment-item:last-child {
+            border-bottom: none;
+        }
+        .total-amount-display {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body class="grey lighten-5">
+
+    <nav>
+        <div class="nav-wrapper blue">
+            <a href="index.html" class="brand-logo center">BOOPKA Payroll Deposit</a>
+        </div>
+    </nav>
+
+    <div class="container section">
+        <div class="row">
+            <div class="col s12 m10 offset-m1 l8 offset-l2">
+                <div class="card-panel">
+                    <h4 class="center-align">Confirm Payroll Deposits</h4>
+                    <p class="center-align">Review the payments below. Press "Execute Deposits" to process them.</p>
+                    <p class="center-align">Payroll Run ID: <strong id="payroll-run-id-display">N/A</strong></p>
+
+                    <div id="payroll-items-list">
+                        <!-- Payroll items will be loaded here -->
+                        <p class="center-align">Loading payroll data...</p>
+                    </div>
+
+                    <div id="total-amount-display" class="center-align total-amount-display">
+                        Total to Deposit: <span id="total-deposit-amount">0.00</span> BUP
+                    </div>
+
+                    <div class="center-align" style="margin-top: 30px;">
+                        <button id="execute-deposits-btn" class="btn waves-effect waves-light green large-btn">
+                            <i class="material-icons left notranslate">payment</i>Execute Deposits
+                        </button>
+                    </div>
+                    <p id="processing-status" class="status-message center-align"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Materialize JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            M.AutoInit();
+
+            const firebaseConfig = { // YOUR BOOPKA BANKING FIREBASE CONFIG
+                apiKey: "AIzaSyBMQeHxv9A9zBETgvvsgHYyrNpwQFBWn4Y",
+                authDomain: "toras-jeffrey.firebaseapp.com",
+                projectId: "toras-jeffrey",
+                storageBucket: "toras-jeffrey.appspot.com",
+                messagingSenderId: "114964475333",
+                appId: "1:114964475333:web:e236c773ad86e9180b2fac",
+                measurementId: "G-KGQ4FESPKF"
+            };
+
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+            const auth = firebase.auth(); // Needed to check if admin is logged in
+
+            const payrollItemsListEl = document.getElementById('payroll-items-list');
+            const executeDepositsBtn = document.getElementById('execute-deposits-btn');
+            const processingStatusEl = document.getElementById('processing-status');
+            const payrollRunIdDisplayEl = document.getElementById('payroll-run-id-display');
+            const totalDepositAmountEl = document.getElementById('total-deposit-amount');
+
+            let paymentsToProcess = [];
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const payrollDataParam = urlParams.get('payrollData');
+            const payrollRunId = urlParams.get('payrollRunId');
+
+            if (payrollRunId) {
+                payrollRunIdDisplayEl.textContent = payrollRunId;
+            }
+
+            if (payrollDataParam) {
+                try {
+                    paymentsToProcess = JSON.parse(payrollDataParam);
+                    displayPayrollItems(paymentsToProcess);
+                } catch (e) {
+                    payrollItemsListEl.innerHTML = '<p class="center-align red-text">Error: Invalid payroll data received.</p>';
+                    console.error("Error parsing payroll data:", e);
+                    executeDepositsBtn.disabled = true;
+                }
+            } else {
+                payrollItemsListEl.innerHTML = '<p class="center-align red-text">No payroll data received.</p>';
+                executeDepositsBtn.disabled = true;
+            }
+
+            function displayPayrollItems(payments) {
+                if (!payments || payments.length === 0) {
+                    payrollItemsListEl.innerHTML = '<p class="center-align">No payments to process.</p>';
+                    executeDepositsBtn.disabled = true;
+                    totalDepositAmountEl.textContent = "0.00";
+                    return;
+                }
+                let html = '<ul class="collection">';
+                let totalAmount = 0;
+                payments.forEach(payment => {
+                    html += `<li class="collection-item payment-item"><div>Email: <strong>${payment.email}</strong><span class="secondary-content">Amount: <strong>${payment.amount} BUP</strong></span></div></li>`;
+                    totalAmount += parseFloat(payment.amount);
+                });
+                html += '</ul>';
+                payrollItemsListEl.innerHTML = html;
+                totalDepositAmountEl.textContent = totalAmount.toFixed(2);
+            }
+
+            executeDepositsBtn.addEventListener('click', async () => {
+                executeDepositsBtn.disabled = true;
+                processingStatusEl.textContent = "Processing deposits... Please wait.";
+                processingStatusEl.className = 'status-message center-align orange-text';
+
+                const currentUser = auth.currentUser;
+                if (!currentUser) {
+                    processingStatusEl.textContent = "Error: You must be logged in to process deposits.";
+                    processingStatusEl.className = 'status-message center-align red-text';
+                    executeDepositsBtn.disabled = false;
+                    return;
+                }
+
+                // Admin Check (similar to index.html)
+                let isAdmin = false;
+                try {
+                    const adminDoc = await db.collection('admins').doc(currentUser.uid).get();
+                    if (adminDoc.exists) {
+                        isAdmin = true;
+                    }
+                } catch (adminCheckError) {
+                    console.error("Error checking admin status:", adminCheckError);
+                    processingStatusEl.textContent = "Error: Could not verify admin status.";
+                    processingStatusEl.className = 'status-message center-align red-text';
+                    executeDepositsBtn.disabled = false;
+                    return;
+                }
+
+                if (!isAdmin) {
+                    processingStatusEl.textContent = "Error: You are not authorized to perform this action.";
+                    processingStatusEl.className = 'status-message center-align red-text';
+                    executeDepositsBtn.disabled = false;
+                    return;
+                }
+
+                if (!paymentsToProcess || paymentsToProcess.length === 0) {
+                    processingStatusEl.textContent = "No payments to process.";
+                    processingStatusEl.className = 'status-message center-align blue-text';
+                    return;
+                }
+
+                let successCount = 0;
+                let failureCount = 0;
+                let detailedMessages = [];
+
+                for (const payment of paymentsToProcess) {
+                    const recipientEmail = payment.email;
+                    const amountToDeposit = parseFloat(payment.amount);
+
+                    if (!recipientEmail || isNaN(amountToDeposit) || amountToDeposit <= 0) {
+                        failureCount++;
+                        detailedMessages.push(`Skipped invalid payment data for ${recipientEmail || 'unknown email'}.`);
+                        continue;
+                    }
+
+                    try {
+                        const usersRef = db.collection('users');
+                        const recipientQuery = await usersRef.where("email", "==", recipientEmail).limit(1).get();
+
+                        if (recipientQuery.empty) {
+                            failureCount++;
+                            detailedMessages.push(`User ${recipientEmail} not found. Deposit failed.`);
+                            continue;
+                        }
+
+                        const recipientDoc = recipientQuery.docs[0];
+                        const recipientId = recipientDoc.id;
+                        const recipientData = recipientDoc.data();
+                        const currentRecipientCredits = recipientData.credits || 0;
+
+                        // Update recipient's balance
+                        await usersRef.doc(recipientId).update({
+                            credits: currentRecipientCredits + amountToDeposit
+                        });
+
+                        // Log the transaction
+                        await db.collection('transactions').add({
+                            senderId: "COMPANY_PAYROLL", // Special ID for payroll
+                            senderEmail: `Payroll Run ${payrollRunId || 'N/A'}`, // Or your company name
+                            recipientId: recipientId,
+                            recipientEmail: recipientEmail,
+                            amount: amountToDeposit,
+                            type: 'PAYROLL_DEPOSIT',
+                            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                            involvedUsers: [recipientId, "COMPANY_PAYROLL"] // So it appears in user's history
+                        });
+                        successCount++;
+                        detailedMessages.push(`Successfully deposited ${amountToDeposit.toFixed(2)} BUP to ${recipientEmail}.`);
+                    } catch (error) {
+                        failureCount++;
+                        detailedMessages.push(`Failed to deposit to ${recipientEmail}: ${error.message}`);
+                        console.error(`Error processing deposit for ${recipientEmail}:`, error);
+                    }
+                }
+
+                processingStatusEl.innerHTML = `Processing complete. <br>Successful deposits: ${successCount}. <br>Failed deposits: ${failureCount}. <br><small>${detailedMessages.join('<br>')}</small>`;
+                processingStatusEl.className = failureCount > 0 ? 'status-message center-align orange-text' : 'status-message center-align green-text';
+                // Keep button disabled after processing to prevent accidental re-runs.
+                // User would need to refresh or go back to the payroll system to re-initiate.
+                executeDepositsBtn.disabled = true; // Prevent re-clicking
+            });
+
+        });
+    </script>
+</body>
+</html>
