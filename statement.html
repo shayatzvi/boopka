@@ -152,10 +152,8 @@
 
                     <div id="statement-summary" class="statement-summary">
                         <h5>Summary for Period</h5>
-                        
                         <div class="summary-item"><span>Total Debits:</span> <strong id="total-debits">... BUP</strong></div>
                         <div class="summary-item"><span>Total Credits:</span> <strong id="total-credits">... BUP</strong></div>
-                       
                     </div>
 
                     <div class="statement-details">
@@ -212,8 +210,8 @@
             const statementNoTransactionsMsgEl = document.getElementById('statement-no-transactions');
             const statementErrorEl = document.getElementById('statement-error');
             const generationDateEl = document.getElementById('generation-date');
-            const openingBalanceEl = document.getElementById('opening-balance');
-            const closingBalanceEl = document.getElementById('closing-balance');
+            // const openingBalanceEl = document.getElementById('opening-balance'); // Removed
+            // const closingBalanceEl = document.getElementById('closing-balance'); // Removed
             const totalDebitsEl = document.getElementById('total-debits');
             const totalCreditsEl = document.getElementById('total-credits');
             
@@ -250,8 +248,8 @@
                     statementUserEmailEl.textContent = userData.email || 'N/A';
                     statementUserIdEl.textContent = userId;
 
-                    openingBalanceEl.textContent = "N/A (Requires full history)"; 
-                    closingBalanceEl.textContent = "N/A (Requires full history)"; 
+                    // openingBalanceEl.textContent = "N/A (Requires full history)"; // Removed
+                    // closingBalanceEl.textContent = "N/A (Requires full history)"; // Removed
 
                     let transactionsQuery = db.collection('transactions')
                         .where('involvedUsers', 'array-contains', userId)
