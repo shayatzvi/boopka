@@ -33,6 +33,7 @@ const transferStatus = document.getElementById('transfer-status');
 
 const transactionList = document.getElementById('transaction-list');
 const noTransactionsMsg = document.getElementById('no-transactions');
+const loadMoreTransactionsBtn = document.getElementById('load-more-transactions-btn');
 
 // Card Management DOM Elements
 const cardList = document.getElementById('card-list');
@@ -56,8 +57,10 @@ const adminNoTransactionsMsg = document.getElementById('admin-no-transactions');
 const statementStartDateInput = document.getElementById('statement-start-date');
 const statementEndDateInput = document.getElementById('statement-end-date');
 
-const DEFAULT_CREDITS = 100; // Credits for new users
+const DEFAULT_CREDITS = 100;
+const TRANSACTIONS_PER_LOAD = 5;
 let unsubscribeUserCreditsListener = null;
+let lastVisibleTransactionDoc = null;
 let unsubscribeCardsListener = null;
 let currentUserIsAdmin = false;
 
@@ -289,15 +292,20 @@ transferBtn.addEventListener('click', async () => {
 
 // --- Transaction History Display ---
 async function displayTransactionHistory(userId) {
+    currentUserIdForTransactions = userId; // Store for "load more"
     transactionList.innerHTML = ''; // Clear previous entries
     noTransactionsMsg.style.display = 'none';
+    loadMoreTransactionsBtn.style.display = 'none';
+    lastVisibleTransactionDoc = null; // Reset for a fresh load
 
     try {
         const transactionsRef = db.collection('transactions');
-        const query = transactionsRef
+        let query = transactionsRef
             .where('involvedUsers', 'array-contains', userId)
             .orderBy('timestamp', 'desc')
-            .limit(25); // Show latest 25 transactions
+            .limit(TRANSACTIONS_PER_LOAD);
+
+        console.log(`Initial load for user ${userId}, limit ${TRANSACTIONS_PER_LOAD}`);
 
         const snapshot = await query.get();
 
@@ -306,33 +314,87 @@ async function displayTransactionHistory(userId) {
             return;
         }
 
-        snapshot.forEach(doc => {
-            const tx = doc.data();
-            const li = document.createElement('li');
-            li.classList.add('collection-item'); // Materialize class
-            const date = tx.timestamp ? tx.timestamp.toDate().toLocaleString() : 'Pending...';
+        appendTransactionsToDOM(snapshot.docs, userId);
 
-            if (tx.senderId === userId) { // User sent credits
-                li.classList.add('sent'); // Keep custom class for potential specific styling
-                li.innerHTML = `<i class="material-icons tiny left notranslate red-text">arrow_upward</i> Sent <strong>${tx.amount}</strong> BUP to ${tx.recipientEmail || 'N/A'} <span class="grey-text text-darken-1 right">${date}</span>`;
-            } else if (tx.recipientId === userId) { // User received credits or admin adjustment
-                li.classList.add('received'); // Keep custom class
-                if (tx.senderId === "ADMIN_ADJUSTMENT") {
-                    const actionText = tx.type === 'ADMIN_ADD' ? 'Added' : 'Deducted';
-                    li.innerHTML = `<i class="material-icons tiny left notranslate ${tx.type === 'ADMIN_ADD' ? 'green-text' : 'orange-text'}">settings</i> ${actionText} <strong>${tx.amount}</strong> BUP by ${tx.senderEmail || 'Admin'} <span class="grey-text text-darken-1 right">${date}</span>`;
-                } else {
-                    li.innerHTML = `<i class="material-icons tiny left notranslate green-text">arrow_downward</i> Received <strong>${tx.amount}</strong> BUP from ${tx.senderEmail || 'N/A'} <span class="grey-text text-darken-1 right">${date}</span>`;
-                }
-            } else { // Should not happen if query is correct, but as a fallback
-                li.textContent = `Transaction involving ${tx.amount} credits on ${date}`;
-            }
-            transactionList.appendChild(li);
-        });
+        if (snapshot.docs.length === TRANSACTIONS_PER_LOAD) {
+            loadMoreTransactionsBtn.style.display = 'block';
+            lastVisibleTransactionDoc = snapshot.docs[snapshot.docs.length - 1];
+        } else {
+            loadMoreTransactionsBtn.style.display = 'none';
+        }
+
     } catch (error) {
         console.error("Error fetching transaction history:", error);
         transactionList.innerHTML = '<li><span style="color:red;">Error loading history.</span></li>';
         noTransactionsMsg.style.display = 'none';
+        loadMoreTransactionsBtn.style.display = 'none';
     }
+}
+
+function appendTransactionsToDOM(docs, currentUserId) {
+    docs.forEach(doc => {
+        const tx = doc.data();
+        const li = document.createElement('li');
+        li.classList.add('collection-item');
+        const date = tx.timestamp ? tx.timestamp.toDate().toLocaleString() : 'Pending...';
+
+        if (tx.senderId === currentUserId) {
+            li.classList.add('sent');
+            li.innerHTML = `<i class="material-icons tiny left notranslate red-text">arrow_upward</i> Sent <strong>${tx.amount}</strong> BUP to ${tx.recipientEmail || 'N/A'} <span class="grey-text text-darken-1 right">${date}</span>`;
+        } else if (tx.recipientId === currentUserId) {
+            li.classList.add('received');
+            if (tx.senderId === "ADMIN_ADJUSTMENT") {
+                const actionText = tx.type === 'ADMIN_ADD' ? 'Added' : 'Deducted';
+                li.innerHTML = `<i class="material-icons tiny left notranslate ${tx.type === 'ADMIN_ADD' ? 'green-text' : 'orange-text'}">settings</i> ${actionText} <strong>${tx.amount}</strong> BUP by ${tx.senderEmail || 'Admin'} <span class="grey-text text-darken-1 right">${date}</span>`;
+            } else {
+                li.innerHTML = `<i class="material-icons tiny left notranslate green-text">arrow_downward</i> Received <strong>${tx.amount}</strong> BUP from ${tx.senderEmail || 'N/A'} <span class="grey-text text-darken-1 right">${date}</span>`;
+            }
+        } else {
+            li.textContent = `Transaction involving ${tx.amount} credits on ${date}`;
+        }
+        transactionList.appendChild(li);
+    });
+}
+
+async function fetchAndDisplayMoreTransactions() {
+    if (!lastVisibleTransactionDoc || !currentUserIdForTransactions) {
+        loadMoreTransactionsBtn.style.display = 'none';
+        return;
+    }
+
+    loadMoreTransactionsBtn.disabled = true;
+    loadMoreTransactionsBtn.textContent = 'Loading...';
+
+    try {
+        const transactionsRef = db.collection('transactions');
+        const query = transactionsRef
+            .where('involvedUsers', 'array-contains', currentUserIdForTransactions)
+            .orderBy('timestamp', 'desc')
+            .startAfter(lastVisibleTransactionDoc)
+            .limit(TRANSACTIONS_PER_LOAD);
+
+        const snapshot = await query.get();
+
+        appendTransactionsToDOM(snapshot.docs, currentUserIdForTransactions);
+
+        if (snapshot.docs.length < TRANSACTIONS_PER_LOAD) {
+            loadMoreTransactionsBtn.style.display = 'none';
+        } else {
+            lastVisibleTransactionDoc = snapshot.docs[snapshot.docs.length - 1];
+            loadMoreTransactionsBtn.style.display = 'block';
+        }
+    } catch (error) {
+        console.error("Error fetching more transactions:", error);
+        // Optionally show an error message to the user
+    } finally {
+        loadMoreTransactionsBtn.disabled = false;
+        loadMoreTransactionsBtn.textContent = 'Load More Transactions';
+    }
+}
+
+// Add event listener for the "Load More" button
+if (loadMoreTransactionsBtn) {
+    loadMoreTransactionsBtn.addEventListener('click', fetchAndDisplayMoreTransactions);
 }
 
 // --- Card Management Functions ---
