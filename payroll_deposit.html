@@ -61,7 +61,6 @@
 
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <!-- Materialize JavaScript -->
@@ -82,7 +81,6 @@
 
             firebase.initializeApp(firebaseConfig);
             const db = firebase.firestore();
-            const auth = firebase.auth(); // Needed to check if admin is logged in
 
             const payrollItemsListEl = document.getElementById('payroll-items-list');
             const executeDepositsBtn = document.getElementById('execute-deposits-btn');
@@ -136,36 +134,6 @@
                 executeDepositsBtn.disabled = true;
                 processingStatusEl.textContent = "Processing deposits... Please wait.";
                 processingStatusEl.className = 'status-message center-align orange-text';
-
-                const currentUser = auth.currentUser;
-                if (!currentUser) {
-                    processingStatusEl.textContent = "Error: You must be logged in to process deposits.";
-                    processingStatusEl.className = 'status-message center-align red-text';
-                    executeDepositsBtn.disabled = false;
-                    return;
-                }
-
-                // Admin Check (similar to index.html)
-                let isAdmin = false;
-                try {
-                    const adminDoc = await db.collection('admins').doc(currentUser.uid).get();
-                    if (adminDoc.exists) {
-                        isAdmin = true;
-                    }
-                } catch (adminCheckError) {
-                    console.error("Error checking admin status:", adminCheckError);
-                    processingStatusEl.textContent = "Error: Could not verify admin status.";
-                    processingStatusEl.className = 'status-message center-align red-text';
-                    executeDepositsBtn.disabled = false;
-                    return;
-                }
-
-                if (!isAdmin) {
-                    processingStatusEl.textContent = "Error: You are not authorized to perform this action.";
-                    processingStatusEl.className = 'status-message center-align red-text';
-                    executeDepositsBtn.disabled = false;
-                    return;
-                }
 
                 if (!paymentsToProcess || paymentsToProcess.length === 0) {
                     processingStatusEl.textContent = "No payments to process.";
