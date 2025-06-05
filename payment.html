@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Material Icons CDN -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <title>Make a Payment</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Assuming you might want to use shared styles -->
+</head>
+<body class="grey lighten-5">
+
+    <nav>
+        <div class="nav-wrapper blue">
+          <a href="index.html" class="brand-logo center">BOOPKA Payment</a>
+        </div>
+    </nav>
+
+    <div class="container section">
+        <div class="row">
+            <div class="col s12 m10 offset-m1 l8 offset-l2">
+                <div class="card-panel">
+                    <h4 class="center-align">Make a Payment</h4>
+                    <form id="payment-form">
+                        <div class="input-field">
+                            <input id="recipient" type="text" name="recipient" class="validate">
+                            <label for="recipient">To (Recipient's Email/ID)</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="payer-card" type="text" name="payer_card" class="validate">
+                            <label for="payer-card">Your BOOPKA Card Number</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="amount" type="number" name="amount" step="0.01" min="0.01" class="validate">
+                            <label for="amount">Amount (BUP)</label>
+                        </div>
+                        <div class="input-field">
+                            <textarea id="note" name="note" class="materialize-textarea"></textarea>
+                            <label for="note">Note (Optional)</label>
+                        </div>
+                        <div class="center-align">
+                            <button type="submit" class="btn waves-effect waves-light green">Submit Payment</button>
+                        </div>
+                        <p id="payment-status" class="status-message center-align"></p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- No auth SDK needed if page is public and payer identified by card -->
+
+    <!-- Materialize JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            M.AutoInit(); // Initialize all Materialize components
+
+            // IMPORTANT: Replace with your Firebase project's configuration
+            const firebaseConfig = {
+                apiKey: "AIzaSyBMQeHxv9A9zBETgvvsgHYyrNpwQFBWn4Y",
+                authDomain: "toras-jeffrey.firebaseapp.com",
+                projectId: "toras-jeffrey",
+                storageBucket: "toras-jeffrey.appspot.com",
+                messagingSenderId: "114964475333",
+                appId: "1:114964475333:web:e236c773ad86e9180b2fac",
+                measurementId: "G-KGQ4FESPKF"
+            };
+
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+
+            // Prefill form fields from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+
+            const recipient = urlParams.get('to');
+            const payerCard = urlParams.get('card');
+            const amount = urlParams.get('amount');
+            const note = urlParams.get('note');
+
+            if (recipient) document.getElementById('recipient').value = recipient;
+            if (payerCard) document.getElementById('payer-card').value = payerCard;
+            if (amount) document.getElementById('amount').value = amount;
+            if (note) {
+                document.getElementById('note').value = note;
+                M.textareaAutoResize(document.getElementById('note')); // Ensure textarea resizes if prefilled
+            }
+            M.updateTextFields(); // Important for Materialize labels to float correctly after prefilling
+
+            const paymentForm = document.getElementById('payment-form');
+            const paymentStatusEl = document.getElementById('payment-status');
+
+            paymentForm.addEventListener('submit', async function(event) {
+                event.preventDefault(); // Prevent actual form submission for now
+                paymentStatusEl.textContent = 'Processing...';
+                paymentStatusEl.className = 'status-message center-align orange-text';
+
+                const recipientIdentifier = document.getElementById('recipient').value.trim();
+                const payerCardNumber = document.getElementById('payer-card').value.trim();
+                const amount = parseFloat(document.getElementById('amount').value);
+                const note = document.getElementById('note').value.trim();
+
+                if (!recipientIdentifier || !payerCardNumber || !amount || amount <= 0) {
+                    paymentStatusEl.textContent = "Please fill all required fields with valid values.";
+                    paymentStatusEl.className = 'status-message center-align red-text';
+                    return;
+                }
+
+                try {
+                    // 1. Find Payer by BOOPKA Card Number
+                    const cardsRef = db.collectionGroup('cards').where('maskedNumber', '==', payerCardNumber).limit(1);
+                    const payerCardSnapshot = await cardsRef.get();
+
+                    if (payerCardSnapshot.empty) {
+                        throw new Error("Payer's BOOPKA card not found.");
+                    }
+                    const payerCardDoc = payerCardSnapshot.docs[0];
+                    const payerId = payerCardDoc.ref.parent.parent.id; // Get the user ID from the card's path
+                    const payerUserRef = db.collection('users').doc(payerId);
+                    const payerUserDoc = await payerUserRef.get();
+
+                    if (!payerUserDoc.exists) {
+                        throw new Error("Payer account not found.");
+                    }
+                    const payerData = payerUserDoc.data();
+
+                    // 2. Find Recipient by Email
+                    const usersRef = db.collection('users');
+                    const recipientQuery = await usersRef.where("email", "==", recipientIdentifier).limit(1).get();
+
+                    if (recipientQuery.empty) {
+                        throw new Error("Recipient user not found.");
+                    }
+                    const recipientDoc = recipientQuery.docs[0];
+                    const recipientId = recipientDoc.id;
+                    const recipientData = recipientDoc.data();
+
+                    if (payerId === recipientId) {
+                        throw new Error("Payer and recipient cannot be the same.");
+                    }
+
+                    // 3. Check Payer's Balance
+                    if (payerData.credits < amount) {
+                        throw new Error("Payer has insufficient BUP balance.");
+                    }
+
+                    // 4. Perform Transaction
+                    await db.runTransaction(async (transaction) => {
+                        const currentPayerDoc = await transaction.get(payerUserRef);
+                        const currentPayerCredits = currentPayerDoc.data().credits;
+                        if (currentPayerCredits < amount) {
+                            throw new Error("Payer has insufficient BUP balance (checked during transaction).");
+                        }
+
+                        const recipientUserRef = db.collection('users').doc(recipientId);
+                        const currentRecipientDoc = await transaction.get(recipientUserRef);
+                        const currentRecipientCredits = currentRecipientDoc.data().credits;
+
+                        transaction.update(payerUserRef, { credits: currentPayerCredits - amount });
+                        transaction.update(recipientUserRef, { credits: currentRecipientCredits + amount });
+                    });
+
+                    // 5. Log Transaction
+                    await db.collection('transactions').add({
+                        payerId: payerId,
+                        payerEmail: payerData.email, // Store payer email for convenience
+                        payerCardUsed: payerCardNumber,
+                        recipientId: recipientId,
+                        recipientEmail: recipientData.email,
+                        amount: amount,
+                        note: note || null, // Store null if note is empty
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                        type: 'CARD_PAYMENT',
+                        involvedUsers: [payerId, recipientId]
+                    });
+
+                    paymentStatusEl.textContent = `Successfully paid ${amount} BUP to ${recipientData.email}.`;
+                    paymentStatusEl.className = 'status-message center-align green-text';
+                    paymentForm.reset();
+                    M.updateTextFields(); // Reset labels
+
+                } catch (error) {
+                    console.error("Payment processing error:", error);
+                    paymentStatusEl.textContent = "Payment failed: " + error.message;
+                    paymentStatusEl.className = 'status-message center-align red-text';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

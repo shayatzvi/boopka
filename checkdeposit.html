@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Material Icons CDN -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <title>Submit Check</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="grey lighten-5">
+    <div class="container section">
+        <div class="row">
+            <div class="col s12 m10 offset-m1 l8 offset-l2">
+                <div class="card-panel">
+                    <h4 class="center-align">Submit Check Information</h4>
+                    <form name="check-submission" method="POST" data-netlify="true" enctype="multipart/form-data">
+                        <div class="input-field">
+                            <input id="submitter_name" type="text" name="name" class="validate" required>
+                            <label for="submitter_name">Your Name</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="submitter_email" type="email" name="email" class="validate" required>
+                            <label for="submitter_email">Your Email</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="check_amount" type="number" name="check_amount" step="0.01" class="validate" required>
+                            <label for="check_amount">Check Amount</label>
+                        </div>
+                        <div class="file-field input-field">
+                            <div class="btn teal">
+                                <span>Check Front Image</span>
+                                <input type="file" name="check_front_image" accept="image/*" required>
+                            </div>
+                            <div class="file-path-wrapper">
+                                <input class="file-path validate" type="text" placeholder="Upload one file">
+                            </div>
+                        </div>
+                        <div class="input-field">
+                            <textarea id="notes" name="notes" class="materialize-textarea"></textarea>
+                            <label for="notes">Additional Notes</label>
+                        </div>
+                        <div class="center-align">
+                            <button type="submit" class="btn waves-effect waves-light blue">Submit Check Info</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Materialize JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            M.AutoInit(); // Initialize all Materialize components
+        });
+    </script>
+</body>
+</html>

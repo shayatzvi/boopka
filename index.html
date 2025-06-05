@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Material Icons CDN -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Materialize CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <title>Credit Transfer System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="grey lighten-5"> <!-- Changed background slightly -->
+    <div id="auth-container" class="container section">
+        <div class="row">
+            <div class="col s12 m8 offset-m2 l6 offset-l3">
+                <div class="card-panel">
+                    <h2 class="center-align">BOOPKA</h2>
+                    <div class="input-field">
+                        <input type="email" id="email" class="validate" required>
+                        <label for="email">Email</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="password" id="password" class="validate" required>
+                        <label for="password">Password</label>
+                    </div>
+                    <div class="center-align">
+                        <button id="login-btn" class="btn waves-effect waves-light blue" style="margin-right: 10px;">Login</button>
+                    </div>
+                    <p id="auth-error" class="red-text text-darken-2"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-container" class="container section" style="display:none;">
+        <div class="row">
+            <div id="left-panel" class="col s12 m6 l5"> <!-- Adjusted column size -->
+                <div id="user-section" class="card-panel">
+                    <h5>Welcome, <span id="user-email"></span>!</h5>
+                    <p>Your Balance: <strong id="user-credits">0</strong> </p>
+                    <p><a href="checkdeposit.html" target="_blank" class="waves-effect waves-light btn-small teal lighten-1"><i class="material-icons left notranslate">note_add</i>Submit Check</a></p>
+                    <button id="logout-btn" class="btn waves-effect waves-light red darken-1">Logout</button>
+                </div>
+
+                <div id="transfer-section" class="card-panel">
+                    <h5>Transfer Credits</h5>
+                    <div class="input-field">
+                        <input type="email" id="recipient-email" class="validate" required>
+                        <label for="recipient-email">Recipient's Email</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="number" id="transfer-amount" min="1" class="validate" required>
+                        <label for="transfer-amount">Amount</label>
+                    </div>
+                    <button id="transfer-btn" class="btn waves-effect waves-light blue">Transfer</button>
+                    <p id="transfer-status" class="status-message"></p>
+                </div>
+
+                <!-- Moved Cards Section content into left-panel -->
+                <div id="cards-section-panel" class="card-panel"> <!-- Renamed ID for clarity if needed, or keep as is if JS targets elements within -->
+                    <h5>Saved BOOPKA Cards</h5>
+                    <ul id="card-list" class="collection">
+                        <!-- Saved cards will be listed here -->
+                    </ul>
+                    <h6>Add New BOOPKA Card</h6>
+                    <div class="input-field">
+                        <input type="text" id="card-number-input" class="validate" placeholder="Enter your card number" maxlength="30">
+                        <label for="card-number-input">BOOPKA Card Number</label>
+                    </div>
+                    <button id="add-card-btn" class="btn waves-effect waves-light blue">Add Card</button>
+                    <p id="card-status" class="status-message"></p>
+                 </div>
+            </div>
+
+            <div id="transaction-history-container" class="col s12 m6 l7"> <!-- Adjusted column size -->
+                <div class="card-panel">
+                    <h5>Transaction History</h5>
+                    <ul id="transaction-list" class="collection">
+                        <!-- Transactions will be li.collection-item -->
+                    </ul>
+                    <p id="no-transactions" style="display:none;">No transactions yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-area-container" class="container section" style="display:none;">
+        <div class="row">
+            <div class="col s12">
+                <div class="card-panel">
+                    <h4 class="center-align">Admin Area</h4>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div id="admin-user-management" class="col s12 l6">
+                <div class="card-panel">
+                    <h5>User Management</h5>
+                    <div class="admin-controls">
+                        <div class="input-field">
+                            <select id="admin-action-type">
+                                <option value="set" selected>Set Balance</option>
+                                <option value="add">Add Credits</option>
+                                <option value="deduct">Deduct Credits</option>
+                            </select>
+                            <label>Action Type</label>
+                        </div>
+                        <div class="input-field">
+                            <input type="email" id="admin-manage-user-email" class="validate">
+                            <label for="admin-manage-user-email">User Email to Manage</label>
+                        </div>
+                        <div class="input-field">
+                            <input type="number" id="admin-balance-amount" class="validate">
+                            <label for="admin-balance-amount">Amount/New Balance</label>
+                        </div>
+                        <div class="input-field">
+                            <input type="text" id="admin-from-name" value="Admin Adjustment">
+                            <label for="admin-from-name">From Name</label>
+                        </div>
+                        <button id="admin-update-balance-btn" class="btn waves-effect waves-light orange darken-2">Update Balance</button>
+                    </div>
+                    <p id="admin-user-status" class="status-message"></p>
+                    <h6>All Users:</h6>
+                    <ul id="admin-user-list" class="collection with-header"> 
+                        <li class="collection-header"><h6>Users</h6></li>
+                        <!-- User li.collection-item -->
+                    </ul>
+                </div>
+            </div>
+
+            <div id="admin-transaction-management" class="col s12 l6">
+                <div class="card-panel">
+                    <h5>All Transactions</h5>
+                    <ul id="admin-transaction-list" class="collection with-header">
+                         <li class="collection-header"><h6>Transactions</h6></li>
+                        <!-- Transaction li.collection-item -->
+                    </ul>
+                    <p id="admin-no-transactions" style="display:none;">No transactions in the system yet.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Firebase SDKs - Using v8 for simplicity in this example -->
+    <!-- For new projects, consider Firebase v9 (modular SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Materialize JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
