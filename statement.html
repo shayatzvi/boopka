@@ -142,6 +142,7 @@
                             <p>Account Holder: <span id="statement-user-email">...</span></p>
                             <p>User ID: <span id="statement-user-id">...</span></p>
                             <p>Period: <span id="statement-period">...</span></p>
+                            <p><strong>Current Account Balance: <span id="statement-current-balance">... BUP</span></strong></p>
                         </div>
                         <div class="header-meta">
                             <p>BOOPKA Financial</p>
@@ -153,7 +154,7 @@
                     <div id="statement-summary" class="statement-summary">
                         <h5>Summary for Period</h5>
                         <div class="summary-item"><span>Total Debits:</span> <strong id="total-debits">... BUP</strong></div>
-                        <div class="summary-item"><span>Total Credits:</span> <strong id="total-credits">... BUP</strong></div>
+                        <div class="summary-item"><span>Total Credits (recieved (not current)):</span> <strong id="total-credits">... BUP</strong></div>
                     </div>
 
                     <div class="statement-details">
@@ -209,6 +210,7 @@
             const statementTransactionListEl = document.getElementById('statement-transaction-list'); // This is now a <tbody>
             const statementNoTransactionsMsgEl = document.getElementById('statement-no-transactions');
             const statementErrorEl = document.getElementById('statement-error');
+            const statementCurrentBalanceEl = document.getElementById('statement-current-balance');
             const generationDateEl = document.getElementById('generation-date');
             // const openingBalanceEl = document.getElementById('opening-balance'); // Removed
             // const closingBalanceEl = document.getElementById('closing-balance'); // Removed
@@ -247,6 +249,7 @@
                     const userData = userDoc.data();
                     statementUserEmailEl.textContent = userData.email || 'N/A';
                     statementUserIdEl.textContent = userId;
+                    statementCurrentBalanceEl.textContent = (userData.credits !== undefined ? userData.credits.toFixed(2) : 'N/A') + " BUP";
 
                     // openingBalanceEl.textContent = "N/A (Requires full history)"; // Removed
                     // closingBalanceEl.textContent = "N/A (Requires full history)"; // Removed
