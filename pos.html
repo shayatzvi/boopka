@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BOOPKA - Point of Sale</title>
+    <!-- Bootstrap 3 CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- Optional: Material Icons if you want to use them here, though Bootstrap has Glyphicons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Custom POS Styles (optional) -->
+    <style>
+        body { padding-top: 20px; background-color: #f8f9fa;}
+        .panel-primary > .panel-heading { background-color: #5e35b1; border-color: #5e35b1; } /* Purple to match BOOPKA theme */
+        .nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+            background-color: #5e35b1;
+            color: white;
+            border-color: #5e35b1;
+        }
+        .nav-tabs > li > a { color: #5e35b1; }
+        .btn-primary { background-color: #7e57c2; border-color: #7e57c2; }
+        .btn-primary:hover { background-color: #5e35b1; border-color: #5e35b1; }
+        .btn-success { background-color: #43a047; border-color: #43a047; }
+        .btn-info { background-color: #039be5; border-color: #039be5; }
+        .back-link { margin-bottom:15px; display:inline-block;}
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="index.html" class="back-link">&laquo; Back to Main BOOPKA App</a>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-primary">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">Merchant Point of Sale (POS)</h3>
+                    </div>
+                    <div class="panel-body">
+                        <!-- Nav tabs -->
+                        <ul class="nav nav-tabs" role="tablist">
+                            <li role="presentation" class="active"><a href="#pos-checkout" aria-controls="pos-checkout" role="tab" data-toggle="tab">Checkout</a></li>
+                            <li role="presentation"><a href="#pos-products" aria-controls="pos-products" role="tab" data-toggle="tab">Manage Products</a></li>
+                            <li role="presentation"><a href="#pos-sales-history" aria-controls="pos-sales-history" role="tab" data-toggle="tab">Sales History</a></li>
+                        </ul>
+
+                        <!-- Tab panes -->
+                        <div class="tab-content" style="padding-top: 20px;">
+                            <div role="tabpanel" class="tab-pane active" id="pos-checkout">
+                                <h4>Checkout</h4>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Add Items to Cart</h5>
+                                        <div class="form-group">
+                                            <label for="pos-product-select">Select Product:</label>
+                                            <select id="pos-product-select" class="form-control">
+                                                <!-- Products will be populated here by JS -->
+                                                <option>Loading products...</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="pos-quantity">Quantity:</label>
+                                            <input type="number" id="pos-quantity" class="form-control" value="1" min="1">
+                                        </div>
+                                        <button id="pos-add-to-cart-btn" class="btn btn-info">Add to Cart</button>
+
+                                        <h5 style="margin-top: 20px;">Cart</h5>
+                                        <ul id="pos-cart-list" class="list-group">
+                                            <!-- Cart items will be listed here -->
+                                            <li class="list-group-item">Cart is empty</li>
+                                        </ul>
+                                        <p><strong>Total: <span id="pos-cart-total">0.00</span> BUP</strong></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Payment</h5>
+                                        <div class="form-group">
+                                            <label for="pos-customer-card">Customer's BOOPKA Card Number:</label>
+                                            <input type="text" id="pos-customer-card" class="form-control" placeholder="7-digit card number">
+                                        </div>
+                                        <button id="pos-process-payment-btn" class="btn btn-success btn-lg">Process Payment</button>
+                                        <p id="pos-checkout-status" style="margin-top:10px;"></p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div role="tabpanel" class="tab-pane" id="pos-products">
+                                <h4>Manage Products</h4>
+                                <button id="pos-add-product-modal-btn" class="btn btn-primary" data-toggle="modal" data-target="#addProductModal">Add New Product</button>
+                                <table class="table table-striped" style="margin-top: 20px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Price (BUP)</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pos-product-list-table">
+                                        <!-- Products will be listed here -->
+                                        <tr><td colspan="3">Loading products...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div role="tabpanel" class="tab-pane" id="pos-sales-history">
+                                <h4>Sales History</h4>
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Sale ID</th>
+                                            <th>Customer Email</th>
+                                            <th>Total Amount (BUP)</th>
+                                            <th>Items</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pos-sales-history-table">
+                                        <!-- Sales history will be listed here -->
+                                        <tr><td colspan="5">Loading sales history...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Product Modal (Bootstrap 3) -->
+    <div class="modal fade" id="addProductModal" tabindex="-1" role="dialog" aria-labelledby="addProductModalLabel">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="addProductModalLabel">Add/Edit Product</h4>
+                </div>
+                <div class="modal-body">
+                    <form id="pos-product-form">
+                        <input type="hidden" id="pos-product-id">
+                        <div class="form-group">
+                            <label for="pos-product-name">Product Name</label>
+                            <input type="text" class="form-control" id="pos-product-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pos-product-price">Price (BUP)</label>
+                            <input type="number" class="form-control" id="pos-product-price" step="0.01" min="0" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="pos-save-product-btn">Save Product</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Bootstrap 3 JS (jQuery is a dependency) -->
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    
+    <!-- POS Specific JavaScript (you'll create this file) -->
+    <script src="pos-app.js"></script>
+</body>
+</html>
